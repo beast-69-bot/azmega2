@@ -828,6 +828,8 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
             f"<b>Current Key:</b> <code>{mask_secret(settings.get('xwallet_api_key', ''))}</code>\n\n"
             "<i>Owner can update the key directly from here.</i>"
         )
+        if edit_type == "setxwallet":
+            msg += "\n\n<b>Send the new XWallet API key as a text message.</b> <i>Timeout:</i> 60 sec"
     elif key == "var":
         for k in list(OrderedDict(sorted(config_dict.items())).keys())[
             START : 10 + START
@@ -1239,6 +1241,7 @@ async def update_xwallet_key(_, message, pre_message):
     await payment_store.update_settings({"xwallet_api_key": key, "updated_at": int(time())})
     await payment_store.log_audit({"action": "set_xwallet_key", "by": message.from_user.id})
     await update_buttons(pre_message, "xwallet")
+    await sendMessage(message, "XWallet API key saved successfully.")
     await deleteMessage(message)
 
 
@@ -1292,8 +1295,8 @@ async def edit_bot_settings(client, query):
         await update_buttons(message, data[1])
     elif data[1] == "setxwallet":
         handler_dict[message.chat.id] = False
-        await query.answer()
-        await update_buttons(message, "xwallet")
+        await query.answer("Send the XWallet API key as your next text message.", show_alert=True)
+        await update_buttons(message, "xwallet", "setxwallet")
         pfunc = partial(update_xwallet_key, pre_message=message)
         rfunc = partial(update_buttons, message, "xwallet")
         await event_handler(client, query, pfunc, rfunc)

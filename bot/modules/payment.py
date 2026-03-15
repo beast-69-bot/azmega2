@@ -83,7 +83,7 @@ def _format_ts(ts: int) -> str:
 def _parse_plans() -> dict[str, PaymentPlan]:
     raw = environ.get(
         "PAYMENT_PLANS",
-        "basic|Basic (1 Day)|49|86400,pro|Pro (7 Days)|199|604800,premium|Premium (30 Days)|499|2592000",
+        "daily|Daily (1 Day)|10|86400,weekly|Weekly (7 Days)|35|604800,monthly|Monthly (30 Days)|125|2592000",
     )
     plans: dict[str, PaymentPlan] = {}
     for idx, chunk in enumerate(raw.split(","), start=1):
