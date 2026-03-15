@@ -1231,12 +1231,6 @@ async def send_users_settings(client, message):
 
 bot.add_handler(
     MessageHandler(
-        send_users_settings,
-        filters=command(BotCommands.UsersCommand) & CustomFilters.sudo,
-    )
-)
-bot.add_handler(
-    MessageHandler(
         user_settings,
         filters=command(BotCommands.UserSetCommand) & CustomFilters.authorized_uset,
     )

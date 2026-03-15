@@ -134,10 +134,11 @@ async def _resolve_gateway() -> str:
     return gateway
 
 
-async def _set_user_auth(user_id: int, auth_seconds: int) -> int:
+async def _set_user_auth(user_id: int, auth_seconds: int, plan_name: str = "Premium") -> int:
     expires_at = _now_ts() + auth_seconds
     update_user_ldata(user_id, "is_auth", True)
     update_user_ldata(user_id, "auth_expires", expires_at)
+    update_user_ldata(user_id, "auth_plan", plan_name)
     if DATABASE_URL:
         await DbManger().update_user_data(user_id)
     return expires_at
@@ -152,6 +153,7 @@ async def _expire_auth_if_needed(user_id: int) -> bool:
         return False
     data["is_auth"] = False
     data.pop("auth_expires", None)
+    data.pop("auth_plan", None)
     if DATABASE_URL:
         await DbManger().update_user_data(user_id)
     LOGGER.info(f"payment-auth expired: user={user_id}")
@@ -289,7 +291,9 @@ async def _approve_payment(order_id: str, approver: str, txn_id: str = "") -> bo
     auth_seconds = int(order.get("auth_seconds", 0))
     if auth_seconds <= 0:
         auth_seconds = 86400
-    auth_exp = await _set_user_auth(user_id, auth_seconds)
+    auth_exp = await _set_user_auth(
+        user_id, auth_seconds, str(order.get("plan", "Premium"))
+    )
     changed = await payment_store.update_order_if_status(
         order_id,
         ["pending", "processing", "awaiting_screenshot", "under_review"],
@@ -951,12 +955,6 @@ bot.add_handler(MessageHandler(auth_expiry_guard, filters=regex(r"^/")), group=-
 bot.add_handler(MessageHandler(buy_command, filters=command(buy_cmds)))
 bot.add_handler(CallbackQueryHandler(buy_callback, filters=regex("^paym")))
 bot.add_handler(MessageHandler(screenshot_handler, filters=create(_screenshot_filter)))
-bot.add_handler(
-    MessageHandler(
-        payment_admin_entry, filters=command(BotCommands.BotSetCommand) & CustomFilters.sudo
-    ),
-    group=1,
-)
 bot.add_handler(
     MessageHandler(payment_admin_cmd, filters=command(payadmin_cmds) & CustomFilters.sudo)
 )

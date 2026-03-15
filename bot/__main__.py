@@ -59,33 +59,15 @@ from .helper.telegram_helper.button_build import ButtonMaker
 from .helper.listeners.aria2_listener import start_aria2_listener
 from .helper.themes import BotTheme
 from .modules import (
-    authorize,
-    clone,
-    gd_count,
-    gd_delete,
-    gd_list,
     cancel_mirror,
     mirror_leech,
+    payment,
+    bot_settings,
     status,
-    torrent_search,
     torrent_select,
     ytdlp,
-    rss,
-    shell,
-    eval,
     users_settings,
-    bot_settings,
-    speedtest,
     save_msg,
-    images,
-    imdb,
-    anilist,
-    mediainfo,
-    mydramalist,
-    gen_pyro_sess,
-    gd_clean,
-    broadcast,
-    category_select,
 )
 
 
@@ -244,8 +226,6 @@ async def bot_help(client, message):
     user_id = message.from_user.id
     buttons.ibutton(BotTheme("BASIC_BT"), f"wzmlx {user_id} guide basic")
     buttons.ibutton(BotTheme("USER_BT"), f"wzmlx {user_id} guide users")
-    buttons.ibutton(BotTheme("MICS_BT"), f"wzmlx {user_id} guide miscs")
-    buttons.ibutton(BotTheme("O_S_BT"), f"wzmlx {user_id} guide admin")
     buttons.ibutton(BotTheme("CLOSE_BT"), f"wzmlx {user_id} close")
     await sendMessage(message, BotTheme("HELP_HEADER"), buttons.build_menu(2))
 
@@ -377,7 +357,6 @@ async def log_check():
 async def main():
     await gather(
         start_cleanup(),
-        torrent_search.initiate_search_tools(),
         restart_notification(),
         search_images(),
         set_commands(bot),
@@ -404,24 +383,8 @@ async def main():
     )
     bot.add_handler(
         MessageHandler(
-            ping,
-            filters=command(BotCommands.PingCommand)
-            & CustomFilters.authorized
-            & ~CustomFilters.blacklisted,
-        )
-    )
-    bot.add_handler(
-        MessageHandler(
             bot_help,
             filters=command(BotCommands.HelpCommand)
-            & CustomFilters.authorized
-            & ~CustomFilters.blacklisted,
-        )
-    )
-    bot.add_handler(
-        MessageHandler(
-            stats,
-            filters=command(BotCommands.StatsCommand)
             & CustomFilters.authorized
             & ~CustomFilters.blacklisted,
         )

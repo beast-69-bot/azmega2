@@ -615,8 +615,6 @@ async def wzmlxcb(_, query):
             buttons = ButtonMaker()
             buttons.ibutton("Basic", f"wzmlx {user_id} guide basic")
             buttons.ibutton("Users", f"wzmlx {user_id} guide users")
-            buttons.ibutton("Mics", f"wzmlx {user_id} guide miscs")
-            buttons.ibutton("Owner & Sudos", f"wzmlx {user_id} guide admin")
             buttons.ibutton("Close", f"wzmlx {user_id} close")
             await editMessage(
                 message,
@@ -652,22 +650,6 @@ async def qb_leech(client, message):
     _mirror_leech(client, message, isQbit=True, isLeech=True)
 
 
-bot.add_handler(
-    MessageHandler(
-        mirror,
-        filters=command(BotCommands.MirrorCommand)
-        & CustomFilters.authorized
-        & ~CustomFilters.blacklisted,
-    )
-)
-bot.add_handler(
-    MessageHandler(
-        qb_mirror,
-        filters=command(BotCommands.QbMirrorCommand)
-        & CustomFilters.authorized
-        & ~CustomFilters.blacklisted,
-    )
-)
 bot.add_handler(
     MessageHandler(
         leech,

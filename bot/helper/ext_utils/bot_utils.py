@@ -198,6 +198,16 @@ def get_progress_bar_string(pct):
     return f"[{p_str}]"
 
 
+def get_user_plan_details(user_id):
+    data = user_data.get(user_id, {})
+    plan = "Free"
+    till = ""
+    if (auth_exp := data.get("auth_expires")) and int(auth_exp) > int(time()):
+        plan = data.get("auth_plan", "Premium")
+        till = datetime.fromtimestamp(int(auth_exp)).strftime("%d-%m-%Y %I:%M %p")
+    return plan, till
+
+
 def get_all_versions():
     try:
         result = srun(["7z", "-version"], capture_output=True, text=True)
@@ -320,8 +330,13 @@ def get_readable_message():
             msg += BotTheme("STATUS_SIZE", Size=download.size())
             msg += BotTheme("NON_ENGINE", Engine=download.eng())
 
+        uid = download.message.from_user.id
         msg += BotTheme("USER", User=download.message.from_user.mention(style="html"))
-        msg += BotTheme("ID", Id=download.message.from_user.id)
+        msg += BotTheme("ID", Id=uid)
+        plan_name, plan_till = get_user_plan_details(uid)
+        msg += BotTheme("PLAN", Plan=plan_name)
+        if plan_till:
+            msg += BotTheme("PLAN_EXP", Till=plan_till)
         if (download.eng()).startswith("qBit"):
             msg += BotTheme(
                 "BTSEL", Btsel=f"/{BotCommands.BtSelectCommand}_{download.gid()}"
@@ -866,166 +881,83 @@ async def set_commands(client):
     try:
         bot_cmds = [
             BotCommand(
-                BotCommands.MirrorCommand[0],
-                f"or /{BotCommands.MirrorCommand[1]} Mirror [links/media/rclone_path]",
+                BotCommands.StartCommand,
+                "Start the bot in private chat",
+            ),
+            BotCommand(
+                "buy",
+                "Open premium plans and payment flow",
             ),
             BotCommand(
                 BotCommands.LeechCommand[0],
                 f"or /{BotCommands.LeechCommand[1]} Leech [links/media/rclone_path]",
             ),
             BotCommand(
-                BotCommands.QbMirrorCommand[0],
-                f"or /{BotCommands.QbMirrorCommand[1]} Mirror magnet/torrent using qBittorrent",
-            ),
-            BotCommand(
                 BotCommands.QbLeechCommand[0],
                 f"or /{BotCommands.QbLeechCommand[1]} Leech magnet/torrent using qBittorrent",
-            ),
-            BotCommand(
-                BotCommands.YtdlCommand[0],
-                f"or /{BotCommands.YtdlCommand[1]} Mirror yt-dlp supported links via bot",
             ),
             BotCommand(
                 BotCommands.YtdlLeechCommand[0],
                 f"or /{BotCommands.YtdlLeechCommand[1]} Leech yt-dlp supported links via bot",
             ),
             BotCommand(
-                BotCommands.CloneCommand[0],
-                f"or /{BotCommands.CloneCommand[1]} Copy file/folder to Drive (GDrive/RClone)",
-            ),
-            BotCommand(
-                BotCommands.CountCommand,
-                "[drive_url]: Count file/folder of Google Drive/RClone Drives",
-            ),
-            BotCommand(
                 BotCommands.StatusCommand[0],
-                f"or /{BotCommands.StatusCommand[1]} Get Bot All Status Stats Message",
-            ),
-            BotCommand(
-                BotCommands.StatsCommand[0],
-                f"or /{BotCommands.StatsCommand[1]} Check Bot & System stats",
+                f"or /{BotCommands.StatusCommand[1]} Get active leech status",
             ),
             BotCommand(
                 BotCommands.BtSelectCommand,
                 "Select files to download only torrents/magnet qbit/aria2c",
             ),
-            BotCommand(
-                BotCommands.CategorySelect,
-                "Select Upload Category with UserTD or Bot Categories to upload only GDrive upload",
-            ),
             BotCommand(BotCommands.CancelMirror, "Cancel a Task of yours!"),
             BotCommand(
-                BotCommands.CancelAllCommand[0],
-                "Cancel all Tasks in whole Bots.",
-            ),
-            BotCommand(BotCommands.ListCommand, "Search in Drive(s)"),
-            BotCommand(
-                BotCommands.SearchCommand,
-                "Search in Torrent via qBit clients!",
-            ),
-            BotCommand(
                 BotCommands.HelpCommand,
-                "Get detailed help about the WZML-X Bot",
+                "Get detailed help for leech commands",
             ),
             BotCommand(
                 BotCommands.UserSetCommand[0],
                 f"or /{BotCommands.UserSetCommand[1]} User's Personal Settings (Open in PM)",
             ),
             BotCommand(
-                BotCommands.IMDBCommand,
-                "Search Movies/Series on IMDB.com and fetch details",
-            ),
-            BotCommand(
-                BotCommands.AniListCommand,
-                "Search Animes on AniList.com and fetch details",
-            ),
-            BotCommand(
-                BotCommands.MyDramaListCommand,
-                "Search Dramas on MyDramaList.com and fetch details",
-            ),
-            BotCommand(
-                BotCommands.SpeedCommand[0],
-                f"or /{BotCommands.SpeedCommand[1]} Check Server Up & Down Speed & Details",
-            ),
-            BotCommand(
-                BotCommands.MediaInfoCommand[0],
-                f"or /{BotCommands.MediaInfoCommand[1]} Generate Mediainfo for Replied Media or DL links",
-            ),
-            BotCommand(
                 BotCommands.BotSetCommand[0],
-                f"or /{BotCommands.BotSetCommand[1]} Bot's Personal Settings (Owner or Sudo Only)",
+                f"or /{BotCommands.BotSetCommand[1]} Bot settings (Owner only)",
             ),
             BotCommand(
                 BotCommands.RestartCommand[0],
                 f"or /{BotCommands.RestartCommand[1]} Restart & Update the Bot (Owner or Sudo Only)",
             ),
+            BotCommand(BotCommands.LogCommand, "Get bot logs (Owner or Sudo Only)"),
         ]
         if config_dict["SHOW_EXTRA_CMDS"]:
             bot_cmds.insert(
-                1,
-                BotCommand(
-                    BotCommands.MirrorCommand[2],
-                    f"or /{BotCommands.MirrorCommand[3]} Mirror and UnZip [links/media/rclone_path]",
-                ),
-            )
-            bot_cmds.insert(
-                1,
-                BotCommand(
-                    BotCommands.MirrorCommand[4],
-                    f"or /{BotCommands.MirrorCommand[5]} Mirror and Zip [links/media/rclone_path]",
-                ),
-            )
-            bot_cmds.insert(
-                4,
+                2,
                 BotCommand(
                     BotCommands.LeechCommand[2],
                     f"or /{BotCommands.LeechCommand[3]} Leech and UnZip [links/media/rclone_path]",
                 ),
             )
             bot_cmds.insert(
-                4,
+                2,
                 BotCommand(
                     BotCommands.LeechCommand[4],
                     f"or /{BotCommands.LeechCommand[5]} Leech and Zip [links/media/rclone_path]",
                 ),
             )
             bot_cmds.insert(
-                7,
-                BotCommand(
-                    BotCommands.QbMirrorCommand[2],
-                    f"or /{BotCommands.QbMirrorCommand[3]} Mirror magnet/torrent and UnZip using qBit",
-                ),
-            )
-            bot_cmds.insert(
-                7,
-                BotCommand(
-                    BotCommands.QbMirrorCommand[4],
-                    f"or /{BotCommands.QbMirrorCommand[5]} Mirror magnet/torrent and Zip using qBit",
-                ),
-            )
-            bot_cmds.insert(
-                10,
+                4,
                 BotCommand(
                     BotCommands.QbLeechCommand[2],
                     f"or /{BotCommands.QbLeechCommand[3]} Leech magnet/torrent and UnZip using qBit",
                 ),
             )
             bot_cmds.insert(
-                10,
+                4,
                 BotCommand(
                     BotCommands.QbLeechCommand[4],
                     f"or /{BotCommands.QbLeechCommand[5]} Leech magnet/torrent and Zip using qBit",
                 ),
             )
             bot_cmds.insert(
-                13,
-                BotCommand(
-                    BotCommands.YtdlCommand[2],
-                    f"or /{BotCommands.YtdlCommand[3]} Mirror yt-dlp supported links and Zip via bot",
-                ),
-            )
-            bot_cmds.insert(
-                13,
+                6,
                 BotCommand(
                     BotCommands.YtdlLeechCommand[2],
                     f"or /{BotCommands.YtdlLeechCommand[3]} Leech yt-dlp supported links and Zip via bot",

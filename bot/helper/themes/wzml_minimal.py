@@ -7,9 +7,10 @@ class WZMLStyle:
     ST_BN2_NAME = "Updates"
     ST_BN2_URL = "https://t.me/Az_bots_solution"
     ST_MSG = (
-        "✨ <i>I can mirror links/files/torrents to Google Drive, any rclone cloud, "
-        "Telegram, or DDL servers.</i>\n"
-        "📌 <b>Type {help_command} to see all available commands.</b>"
+        "✨ <b>Welcome.</b>\n"
+        "🔁 <i>I can leech links, files, torrents, and Telegram media directly to Telegram.</i>\n"
+        "📌 <b>Use {help_command} to see all available commands.</b>\n"
+        "🧭 <i>Quick start: send a link/file or use /leech, /qbleech, /ytdlleech, /buy.</i>"
     )
     ST_BOTPM = "📥 <i>Now I'll send your files and links here. Let's go!</i>"
     ST_UNAUTH = "⛔️ <i>You are not authorized. contact admin</i>"
@@ -227,6 +228,8 @@ class WZMLStyle:
     ####--------OVERALL MSG FOOTER----------
     USER = "\n👤 <b>User:</b> <code>{User}</code> | "
     ID = "<b>ID:</b> <code>{Id}</code>"
+    PLAN = "\n💎 <b>Plan:</b> <code>{Plan}</code>"
+    PLAN_EXP = " | <b>Till:</b> <code>{Till}</code>"
     BTSEL = "\n🧩 <b>Select:</b> {Btsel}"
     CANCEL = "\n❌ {Cancel}\n\n"
 

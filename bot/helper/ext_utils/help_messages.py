@@ -329,26 +329,13 @@ But you can always use -c or -category with to select category before download s
 help_string = [
     f"""⌬ <b><i>Basic Commands!</i></b>
 
-<b>Use Mirror commands to download your link/file/rcl</b>
-┠ /{BotCommands.MirrorCommand[0]} or /{BotCommands.MirrorCommand[1]}: Download via file/url/media to Upload to Cloud Drive.
-┖ /{BotCommands.CategorySelect}: Select Custom category to Upload to Cloud Drive from UserTds or Bot Categories.
-
-<b>Use qBit commands for torrents only:</b>
-┠ /{BotCommands.QbMirrorCommand[0]} or /{BotCommands.QbMirrorCommand[1]}: Download using qBittorrent and Upload to Cloud Drive.
-┖ /{BotCommands.BtSelectCommand}: Select files from torrents by btsel_gid or reply.
-
-<b>Use yt-dlp commands for YouTube or any supported sites:</b>
-┖ /{BotCommands.YtdlCommand[0]} or /{BotCommands.YtdlCommand[1]}: Mirror yt-dlp supported link.
-
 <b>Use Leech commands for upload to Telegram:</b>
 ┠ /{BotCommands.LeechCommand[0]} or /{BotCommands.LeechCommand[1]}: Upload to Telegram.
 ┠ /{BotCommands.QbLeechCommand[0]} or /{BotCommands.QbLeechCommand[1]}: Download using qBittorrent and upload to Telegram(For torrents only).
 ┖ /{BotCommands.YtdlLeechCommand[0]} or /{BotCommands.YtdlLeechCommand[1]}: Download using Yt-Dlp(supported link) and upload to telegram.
 
-<b>G-Drive commands:</b>
-┠ /{BotCommands.CloneCommand[0]}: Copy file/folder to Cloud Drive.
-┠ /{BotCommands.CountCommand} [drive_url]: Count file/folder of Google Drive.
-┖ /{BotCommands.DeleteCommand} [drive_url]: Delete file/folder from Google Drive (Only Owner & Sudo).
+<b>Torrent file selection:</b>
+┖ /{BotCommands.BtSelectCommand}: Select files from torrents by btsel_gid or reply.
 
 <b>Cancel Tasks:</b>
 ┖ /{BotCommands.CancelMirror}: Cancel task by cancel_gid or reply.""",
@@ -357,20 +344,18 @@ help_string = [
 <b>Bot Settings:</b>
 ┖ /{BotCommands.UserSetCommand[0]} or /{BotCommands.UserSetCommand[1]} [query]: Open User Settings (PM also)
 
+<b>Premium:</b>
+┖ /buy: Open premium plans and payment flow
+
 <b>Authentication:</b>
 ┖ /login: Login to Bot to Access Bot without Temp Pass System (Private)
 
 <b>Bot Stats:</b>
-┠ /{BotCommands.StatusCommand[0]} or /{BotCommands.StatusCommand[1]}: Shows a status page of all active tasks.
-┠ /{BotCommands.StatsCommand[0]} or /{BotCommands.StatsCommand[1]}: Show Server detailed stats.
-┖ /{BotCommands.PingCommand[0]} or /{BotCommands.PingCommand[1]}: Check how long it takes to Ping the Bot.
-
-<b>RSS Feed:</b>
-┖ /{BotCommands.RssCommand}: Open RSS Menu (Sub/Unsub/Start/Pause)""",
+┖ /{BotCommands.StatusCommand[0]} or /{BotCommands.StatusCommand[1]}: Shows a status page of all active tasks.""",
     f"""⌬ <b><i>Owner or Sudos Commands!</i></b>
 
 <b>Bot Settings:</b>
-┠ /{BotCommands.BotSetCommand[0]} or /{BotCommands.BotSetCommand[1]} [query]: Open Bot Settings (Only Owner & Sudo).
+┠ /{BotCommands.BotSetCommand[0]} or /{BotCommands.BotSetCommand[1]} [query]: Open Bot Settings (Owner Only).
 ┖ /{BotCommands.UsersCommand}: Show User Stats Info (Only Owner & Sudo).
 
 <b>Authentication:</b>

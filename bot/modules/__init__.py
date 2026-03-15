@@ -1,1 +1,1 @@
-﻿from . import payment
+"""Bot modules package."""

@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from time import time
 from io import BytesIO
 from aioshutil import rmtree as aiormtree
+from importlib import import_module
 
 from bot import (
     config_dict,
@@ -50,14 +51,32 @@ from bot.helper.ext_utils.bot_utils import setInterval, sync_to_async, new_threa
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.ext_utils.task_manager import start_from_queued
 from bot.helper.ext_utils.help_messages import default_desp
+from bot.helper.ext_utils.payment_store import PaymentStore
 from bot.helper.mirror_utils.rclone_utils.serve import rclone_serve_booter
-from bot.modules.torrent_search import initiate_search_tools
-from bot.modules.rss import addJob
 from bot.helper.themes import AVL_THEMES
 
 START = 0
 STATE = "view"
 handler_dict = {}
+payment_store = PaymentStore()
+
+
+def mask_secret(secret):
+    if not secret:
+        return "Not Set"
+    if len(secret) <= 6:
+        return "*" * len(secret)
+    return f"{secret[:3]}{'*' * (len(secret) - 6)}{secret[-3:]}"
+
+
+def get_search_tools():
+    return import_module("bot.modules.torrent_search").initiate_search_tools
+
+
+def get_add_rss_job():
+    return import_module("bot.modules.rss").addJob
+
+
 default_values = {
     "AUTO_DELETE_MESSAGE_DURATION": 30,
     "DEFAULT_UPLOAD": "gd",
@@ -784,7 +803,7 @@ async def load_config():
 
     if DATABASE_URL:
         await DbManger().update_config(config_dict)
-    await gather(initiate_search_tools(), start_from_queued(), rclone_serve_booter())
+    await gather(get_search_tools()(), start_from_queued(), rclone_serve_booter())
 
 
 async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
@@ -794,8 +813,21 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
         buttons.ibutton("Private Files", "botset private")
         buttons.ibutton("Qbit Settings", "botset qbit")
         buttons.ibutton("Aria2c Settings", "botset aria")
+        if mess and (mess.from_user or mess.sender_chat).id == config_dict["OWNER_ID"]:
+            buttons.ibutton("XWallet Key", "botset xwallet")
         buttons.ibutton("Close", "botset close")
         msg = "<b><i>Bot Settings:</i></b>"
+    elif key == "xwallet":
+        settings = await payment_store.get_settings()
+        buttons.ibutton("Set Key", "botset setxwallet")
+        buttons.ibutton("Back", "botset back")
+        buttons.ibutton("Close", "botset close")
+        msg = (
+            "<b>XWallet Settings</b>\n\n"
+            f"<b>Gateway:</b> <code>{settings.get('payment_gateway', 'manual')}</code>\n"
+            f"<b>Current Key:</b> <code>{mask_secret(settings.get('xwallet_api_key', ''))}</code>\n\n"
+            "<i>Owner can update the key directly from here.</i>"
+        )
     elif key == "var":
         for k in list(OrderedDict(sorted(config_dict.items())).keys())[
             START : 10 + START
@@ -919,7 +951,7 @@ async def edit_variable(_, message, pre_message, key):
     value = message.text
     if key == "RSS_DELAY":
         value = int(value)
-        addJob(value)
+        get_add_rss_job()(value)
     elif key == "DOWNLOAD_DIR":
         if not value.endswith("/"):
             value += "/"
@@ -997,7 +1029,7 @@ async def edit_variable(_, message, pre_message, key):
     if DATABASE_URL:
         await DbManger().update_config({key: value})
     if key in ["SEARCH_PLUGINS", "SEARCH_API_LINK"]:
-        await initiate_search_tools()
+        await get_search_tools()()
     elif key in ["QUEUE_ALL", "QUEUE_DOWNLOAD", "QUEUE_UPLOAD"]:
         await start_from_queued()
     elif key in [
@@ -1195,6 +1227,21 @@ async def update_private_file(_, message, pre_message):
         await remove("accounts.zip")
 
 
+async def update_xwallet_key(_, message, pre_message):
+    handler_dict[message.chat.id] = False
+    key = (message.text or "").strip()
+    if not key:
+        await sendMessage(message, "XWallet API key cannot be empty.")
+        return
+    if not payment_store.enabled:
+        await sendMessage(message, "DATABASE_URL not provided. XWallet key cannot be saved.")
+        return
+    await payment_store.update_settings({"xwallet_api_key": key, "updated_at": int(time())})
+    await payment_store.log_audit({"action": "set_xwallet_key", "by": message.from_user.id})
+    await update_buttons(pre_message, "xwallet")
+    await deleteMessage(message)
+
+
 async def event_handler(client, query, pfunc, rfunc, document=False):
     chat_id = query.message.chat.id
     handler_dict[chat_id] = True
@@ -1223,6 +1270,8 @@ async def event_handler(client, query, pfunc, rfunc, document=False):
 async def edit_bot_settings(client, query):
     data = query.data.split()
     message = query.message
+    if data[1] in ["xwallet", "setxwallet"] and query.from_user.id != config_dict["OWNER_ID"]:
+        return await query.answer("Only owner can manage XWallet key.", show_alert=True)
     if data[1] == "close":
         handler_dict[message.chat.id] = False
         await query.answer()
@@ -1238,6 +1287,16 @@ async def edit_bot_settings(client, query):
     elif data[1] in ["var", "aria", "qbit"]:
         await query.answer()
         await update_buttons(message, data[1])
+    elif data[1] == "xwallet":
+        await query.answer()
+        await update_buttons(message, data[1])
+    elif data[1] == "setxwallet":
+        handler_dict[message.chat.id] = False
+        await query.answer()
+        await update_buttons(message, "xwallet")
+        pfunc = partial(update_xwallet_key, pre_message=message)
+        rfunc = partial(update_buttons, message, "xwallet")
+        await event_handler(client, query, pfunc, rfunc)
     elif data[1] == "resetvar":
         handler_dict[message.chat.id] = False
         await query.answer("Reset Done!", show_alert=True)
@@ -1296,7 +1355,7 @@ async def edit_bot_settings(client, query):
         if DATABASE_URL:
             await DbManger().update_config({data[2]: value})
         if data[2] in ["SEARCH_PLUGINS", "SEARCH_API_LINK"]:
-            await initiate_search_tools()
+            await get_search_tools()()
         elif data[2] in ["QUEUE_ALL", "QUEUE_DOWNLOAD", "QUEUE_UPLOAD"]:
             await start_from_queued()
         elif data[2] in [
@@ -1462,18 +1521,18 @@ async def edit_bot_settings(client, query):
 
 
 async def bot_settings(_, message):
-    msg, button = await get_buttons()
+    msg, button = await get_buttons(mess=message)
     globals()["START"] = 0
     await sendMessage(message, msg, button, "IMAGES")
 
 
 bot.add_handler(
     MessageHandler(
-        bot_settings, filters=command(BotCommands.BotSetCommand) & CustomFilters.sudo
+        bot_settings, filters=command(BotCommands.BotSetCommand) & CustomFilters.owner
     )
 )
 bot.add_handler(
     CallbackQueryHandler(
-        edit_bot_settings, filters=regex("^botset") & CustomFilters.sudo
+        edit_bot_settings, filters=regex("^botset") & CustomFilters.owner
     )
 )
