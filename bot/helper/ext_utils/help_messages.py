@@ -356,6 +356,7 @@ help_string = [
 
 <b>Bot Settings:</b>
 ┠ /{BotCommands.BotSetCommand[0]} or /{BotCommands.BotSetCommand[1]} [query]: Open Bot Settings (Owner Only).
+┠ /addpremium [user_id] [plan_code]: Grant premium directly. Or reply to a user with /addpremium [plan_code].
 ┖ /{BotCommands.UsersCommand}: Show User Stats Info (Only Owner & Sudo).
 
 <b>Authentication:</b>

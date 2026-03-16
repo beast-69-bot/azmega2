@@ -81,6 +81,17 @@ def _format_ts(ts: int) -> str:
     return datetime.fromtimestamp(ts).strftime("%d-%m-%Y %I:%M:%S %p")
 
 
+def _plan_usage() -> str:
+    cmd_name = f"/addpremium{CMD_SUFFIX}" if CMD_SUFFIX else "/addpremium"
+    plans = ", ".join(f"{plan.code}={plan.label}" for plan in PAYMENT_PLANS.values())
+    return (
+        "Usage:\n"
+        f"{cmd_name} <user_id> <plan_code>\n"
+        f"{cmd_name} <plan_code> on a replied user message\n\n"
+        f"Available plans: {plans}"
+    )
+
+
 def _parse_plans() -> dict[str, PaymentPlan]:
     raw = environ.get(
         "PAYMENT_PLANS",
@@ -210,6 +221,25 @@ def _grant_plan_buttons():
         )
     btn.ibutton("Back", "payadm panel", position="footer")
     return btn.build_menu(1)
+
+
+def _find_plan(plan_input: str) -> PaymentPlan | None:
+    key = (plan_input or "").strip().lower()
+    if not key:
+        return None
+    if key in PAYMENT_PLANS:
+        return PAYMENT_PLANS[key]
+    normalized = key.replace(" ", "")
+    for plan in PAYMENT_PLANS.values():
+        label = plan.label.lower()
+        if key in {label, label.split("(")[0].strip().lower()}:
+            return plan
+        if normalized in {
+            label.replace(" ", ""),
+            label.split("(")[0].strip().lower().replace(" ", ""),
+        }:
+            return plan
+    return None
 
 
 def _orders_buttons(orders: list[dict[str, Any]], page: int, total: int, per_page: int):
@@ -1013,6 +1043,42 @@ async def admin_grant_message(_, message) -> None:
     )
 
 
+async def addpremium_command(_, message) -> None:
+    user = message.from_user or message.sender_chat
+    if not user:
+        return
+    if not payment_store.enabled:
+        return await sendMessage(message, "Payments are unavailable right now.")
+    if not PAYMENT_PLANS:
+        return await sendMessage(message, "No plans configured. Ask admin to set PAYMENT_PLANS.")
+
+    args = message.command[1:]
+    target = None
+    plan = None
+
+    if len(args) >= 2:
+        try:
+            target = int(args[0])
+        except ValueError:
+            target = None
+        plan = _find_plan(" ".join(args[1:]))
+    elif len(args) == 1 and message.reply_to_message:
+        reply_user = message.reply_to_message.from_user or message.reply_to_message.sender_chat
+        if reply_user:
+            target = int(reply_user.id)
+        plan = _find_plan(args[0])
+
+    if not target or target <= 0 or not plan:
+        return await sendMessage(message, _plan_usage())
+
+    order_id, auth_exp, dm_sent = await _grant_manual_premium(int(user.id), target, plan)
+    dm_note = "" if dm_sent else "\nNote: user DM could not be delivered."
+    await sendMessage(
+        message,
+        f"Premium granted successfully.\nOrder: <code>{order_id}</code>\nUser: <code>{target}</code>\nPlan: <b>{plan.label}</b>\nValid till: <b>{_format_ts(auth_exp)}</b>{dm_note}",
+    )
+
+
 async def admin_message_relay(_, message) -> None:
     user = message.from_user or message.sender_chat
     if not user:
@@ -1101,6 +1167,9 @@ if "buy" not in buy_cmds:
 payadmin_cmds = [f"payadmin{CMD_SUFFIX}"] if CMD_SUFFIX else ["payadmin"]
 if "payadmin" not in payadmin_cmds:
     payadmin_cmds.append("payadmin")
+addpremium_cmds = [f"addpremium{CMD_SUFFIX}"] if CMD_SUFFIX else ["addpremium"]
+if "addpremium" not in addpremium_cmds:
+    addpremium_cmds.append("addpremium")
 
 bot.add_handler(MessageHandler(auth_expiry_guard, filters=regex(r"^/")), group=-100)
 bot.add_handler(MessageHandler(buy_command, filters=command(buy_cmds)))
@@ -1108,6 +1177,9 @@ bot.add_handler(CallbackQueryHandler(buy_callback, filters=regex("^paym")))
 bot.add_handler(MessageHandler(screenshot_handler, filters=create(_screenshot_filter)))
 bot.add_handler(
     MessageHandler(payment_admin_cmd, filters=command(payadmin_cmds) & CustomFilters.sudo)
+)
+bot.add_handler(
+    MessageHandler(addpremium_command, filters=command(addpremium_cmds) & CustomFilters.sudo)
 )
 bot.add_handler(
     CallbackQueryHandler(payment_admin_callback, filters=regex("^payadm") & CustomFilters.sudo)

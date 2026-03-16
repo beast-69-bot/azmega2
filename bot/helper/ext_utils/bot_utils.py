@@ -46,6 +46,7 @@ from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.themes import BotTheme
 from bot.version import get_version
 from bot import (
+    CMD_SUFFIX,
     OWNER_ID,
     bot_name,
     bot_cache,
@@ -924,6 +925,10 @@ async def set_commands(client):
             BotCommand(
                 BotCommands.RestartCommand[0],
                 f"or /{BotCommands.RestartCommand[1]} Restart & Update the Bot (Owner or Sudo Only)",
+            ),
+            BotCommand(
+                f"addpremium{CMD_SUFFIX}" if CMD_SUFFIX else "addpremium",
+                "Grant premium directly to a user (Owner or Sudo Only)",
             ),
             BotCommand(BotCommands.LogCommand, "Get bot logs (Owner or Sudo Only)"),
         ]
