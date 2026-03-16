@@ -30,6 +30,7 @@ from bot.helper.telegram_helper.message_utils import (
 from bot.helper.ext_utils.bot_utils import (
     get_readable_file_size,
     get_readable_time,
+    get_user_plan_details,
     turn_page,
     setInterval,
     new_task,
@@ -42,16 +43,22 @@ async def mirror_status(_, message):
     async with download_dict_lock:
         count = len(download_dict)
     if count == 0:
-        currentTime = get_readable_time(time() - botStartTime)
+        current_time = get_readable_time(time() - botStartTime)
         free = get_readable_file_size(disk_usage(config_dict["DOWNLOAD_DIR"]).free)
+        user = message.from_user or message.sender_chat
         msg = BotTheme(
             "NO_ACTIVE_DL",
             cpu=cpu_percent(),
             free=free,
             free_p=round(100 - disk_usage(config_dict["DOWNLOAD_DIR"]).percent, 1),
             ram=virtual_memory().percent,
-            uptime=currentTime,
+            uptime=current_time,
         )
+        if user:
+            plan_name, plan_till = get_user_plan_details(int(user.id))
+            msg += BotTheme("PLAN", Plan=plan_name)
+            if plan_till:
+                msg += BotTheme("PLAN_EXP", Till=plan_till)
         reply_message = await sendMessage(message, msg)
         await auto_delete_message(message, reply_message)
     else:
