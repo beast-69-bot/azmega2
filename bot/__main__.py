@@ -230,6 +230,13 @@ async def bot_help(client, message):
     await sendMessage(message, BotTheme("HELP_HEADER"), buttons.build_menu(2))
 
 
+async def premium_required(_, message):
+    await sendMessage(
+        message,
+        "This is a paid bot.\nBuy premium to use commands.\nUse /buy to view available plans.",
+    )
+
+
 async def restart_notification():
     now = datetime.now(timezone(config_dict["TIMEZONE"]))
     if await aiopath.isfile(".restartmsg"):
@@ -386,6 +393,17 @@ async def main():
             bot_help,
             filters=command(BotCommands.HelpCommand)
             & CustomFilters.authorized
+            & ~CustomFilters.blacklisted,
+        )
+    )
+    bot.add_handler(
+        MessageHandler(
+            premium_required,
+            filters=regex(r"^/")
+            & ~command(BotCommands.StartCommand)
+            & ~command(BotCommands.LoginCommand)
+            & ~command(payment.buy_cmds)
+            & ~CustomFilters.authorized
             & ~CustomFilters.blacklisted,
         )
     )
