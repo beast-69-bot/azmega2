@@ -38,6 +38,7 @@ WAITING_SCREENSHOT: dict[int, str] = {}
 XWALLET_TASKS: dict[str, Task[Any]] = {}
 ADMIN_SETKEY_WAIT: set[int] = set()
 ADMIN_MESSAGE_WAIT: dict[int, tuple[str, int]] = {}
+ADMIN_GRANT_WAIT: dict[int, PaymentPlan] = {}
 
 
 @dataclass(frozen=True)
@@ -134,8 +135,18 @@ async def _resolve_gateway() -> str:
     return gateway
 
 
-async def _set_user_auth(user_id: int, auth_seconds: int, plan_name: str = "Premium") -> int:
-    expires_at = _now_ts() + auth_seconds
+async def _set_user_auth(
+    user_id: int,
+    auth_seconds: int,
+    plan_name: str = "Premium",
+    extend_existing: bool = False,
+) -> int:
+    now_ts = _now_ts()
+    expires_at = now_ts + auth_seconds
+    if extend_existing:
+        current_exp = int(user_data.get(user_id, {}).get("auth_expires", 0) or 0)
+        if current_exp > now_ts:
+            expires_at = current_exp + auth_seconds
     update_user_ldata(user_id, "is_auth", True)
     update_user_ldata(user_id, "auth_expires", expires_at)
     update_user_ldata(user_id, "auth_plan", plan_name)
@@ -184,10 +195,21 @@ def _admin_panel_buttons(settings: dict[str, Any]):
     btn = ButtonMaker()
     btn.ibutton(f"Switch Gateway ({gateway})", "payadm gateway")
     btn.ibutton("Set XWallet API Key", "payadm setkey")
+    btn.ibutton("Grant Premium", "payadm grant")
     btn.ibutton("Revenue Dashboard", "payadm revenue")
     btn.ibutton("All Orders", "payadm orders 1")
     btn.ibutton("Close", "payadm close")
     return btn.build_menu(1), key_mask
+
+
+def _grant_plan_buttons():
+    btn = ButtonMaker()
+    for plan in PAYMENT_PLANS.values():
+        btn.ibutton(
+            f"{plan.label} | INR {plan.amount:.2f}", f"payadm grantplan {plan.code}"
+        )
+    btn.ibutton("Back", "payadm panel", position="footer")
+    return btn.build_menu(1)
 
 
 def _orders_buttons(orders: list[dict[str, Any]], page: int, total: int, per_page: int):
@@ -339,6 +361,61 @@ async def _approve_payment(order_id: str, approver: str, txn_id: str = "") -> bo
     return True
 
 
+async def _grant_manual_premium(
+    admin_id: int, target_user: int, plan: PaymentPlan
+) -> tuple[str, int, bool]:
+    order_id = _build_order_id()
+    auth_exp = await _set_user_auth(
+        target_user, int(plan.auth_seconds), plan.label, extend_existing=True
+    )
+    now_ts = _now_ts()
+    await payment_store.create_order(
+        {
+            "order_id": order_id,
+            "user_id": target_user,
+            "amount": 0.0,
+            "plan": plan.label,
+            "status": "delivered",
+            "gateway": "manual",
+            "source": "manual_admin",
+            "grant_type": "manual_admin",
+            "created_at": now_ts,
+            "delivered_at": now_ts,
+            "expires_at": auth_exp,
+            "approved_by": f"admin:{admin_id}",
+            "auth_seconds": int(plan.auth_seconds),
+            "txn_id": "manual_grant",
+            "qr_code_id": "",
+            "payment_link": "",
+            "payment_chat_id": 0,
+            "payment_message_id": 0,
+        }
+    )
+    await payment_store.log_audit(
+        {
+            "action": "manual_grant",
+            "order_id": order_id,
+            "user_id": target_user,
+            "by": admin_id,
+            "plan": plan.label,
+            "auth_seconds": int(plan.auth_seconds),
+            "expires_at": auth_exp,
+        }
+    )
+    dm_sent = True
+    try:
+        await bot.send_message(
+            target_user,
+            f"Premium granted by admin.\nPlan: <b>{plan.label}</b>\nValid till: <b>{_format_ts(auth_exp)}</b>",
+        )
+    except Exception:
+        dm_sent = False
+    LOGGER.info(
+        f"manual-premium-grant order={order_id} user={target_user} plan={plan.label} by={admin_id}"
+    )
+    return order_id, auth_exp, dm_sent
+
+
 async def _reject_payment(order_id: str, by_admin: int) -> bool:
     order = await payment_store.get_order(order_id)
     if not order:
@@ -451,8 +528,11 @@ async def _show_orders(query, page: int) -> None:
     pages = (total + per_page - 1) // per_page
     text = [f"<b>All Orders</b> | Page <b>{page}/{pages}</b> | Total: <b>{total}</b>", ""]
     for row in orders:
+        plan_label = str(row.get("plan", ""))
+        if str(row.get("grant_type", "")) == "manual_admin":
+            plan_label = f"{plan_label} [Manual Grant]"
         text.append(
-            f"- <code>{row.get('order_id')}</code> | <code>{row.get('user_id')}</code> | {row.get('plan')} | <b>{row.get('status')}</b>"
+            f"- <code>{row.get('order_id')}</code> | <code>{row.get('user_id')}</code> | {plan_label} | <b>{row.get('status')}</b>"
         )
     await editMessage(
         query.message, "\n".join(text), _orders_buttons(orders, page, total, per_page)
@@ -473,6 +553,12 @@ async def _show_order_detail(query, order_id: str, page: int) -> None:
         f"Status: <b>{order.get('status')}</b>\n"
         f"Created: <code>{_format_ts(int(order.get('created_at', _now_ts())))}</code>"
     )
+    if str(order.get("grant_type", "")) == "manual_admin":
+        text += (
+            "\nSource: <code>manual_admin</code>"
+            f"\nGranted By: <code>{order.get('approved_by')}</code>"
+            f"\nValid Till: <code>{_format_ts(int(order.get('expires_at', _now_ts())))}</code>"
+        )
     await editMessage(query.message, text, _order_detail_buttons(order, page))
 
 
@@ -797,6 +883,29 @@ async def payment_admin_callback(_, query) -> None:
             query.message, "Send XWallet API key now. It will be stored securely in DB."
         )
 
+    if action == "grant":
+        await query.answer()
+        if not PAYMENT_PLANS:
+            return await sendMessage(
+                query.message, "No plans configured. Set PAYMENT_PLANS first."
+            )
+        return await editMessage(
+            query.message,
+            "<b>Grant Premium</b>\nSelect a plan, then send the target Telegram user ID as the next text message.",
+            _grant_plan_buttons(),
+        )
+
+    if action == "grantplan" and len(data) >= 3:
+        plan = PAYMENT_PLANS.get(data[2])
+        if not plan:
+            return await query.answer("Invalid plan.", show_alert=True)
+        ADMIN_GRANT_WAIT[uid] = plan
+        await query.answer("Send target Telegram user ID now.", show_alert=True)
+        return await sendMessage(
+            query.message,
+            f"Selected plan: <b>{plan.label}</b>\nNow send the target Telegram user ID as a text message.",
+        )
+
     if action == "revenue":
         await query.answer()
         stats = await payment_store.get_revenue_stats()
@@ -872,6 +981,38 @@ async def admin_setkey_message(_, message) -> None:
     await sendMessage(message, f"XWallet API key updated: <code>{_mask_key(key)}</code>")
 
 
+async def admin_grant_message(_, message) -> None:
+    user = message.from_user or message.sender_chat
+    if not user:
+        return
+    admin_id = int(user.id)
+    plan = ADMIN_GRANT_WAIT.get(admin_id)
+    if not plan:
+        return
+    text = (message.text or "").strip()
+    if not text:
+        return await sendMessage(message, "Send a valid numeric Telegram user ID.")
+    if text.lower() in {"cancel", "/cancel"}:
+        ADMIN_GRANT_WAIT.pop(admin_id, None)
+        return await sendMessage(message, "Manual premium grant cancelled.")
+    try:
+        target_user = int(text)
+    except ValueError:
+        return await sendMessage(message, "Invalid user ID. Send only numeric Telegram user ID.")
+    if target_user <= 0:
+        return await sendMessage(message, "Invalid user ID. Send a positive numeric Telegram user ID.")
+    if not payment_store.enabled:
+        ADMIN_GRANT_WAIT.pop(admin_id, None)
+        return await sendMessage(message, "Payments are unavailable right now.")
+    ADMIN_GRANT_WAIT.pop(admin_id, None)
+    order_id, auth_exp, dm_sent = await _grant_manual_premium(admin_id, target_user, plan)
+    dm_note = "" if dm_sent else "\nNote: user DM could not be delivered."
+    await sendMessage(
+        message,
+        f"Premium granted successfully.\nOrder: <code>{order_id}</code>\nUser: <code>{target_user}</code>\nPlan: <b>{plan.label}</b>\nValid till: <b>{_format_ts(auth_exp)}</b>{dm_note}",
+    )
+
+
 async def admin_message_relay(_, message) -> None:
     user = message.from_user or message.sender_chat
     if not user:
@@ -938,6 +1079,16 @@ def _admin_relay_filter(_, __, message) -> bool:
     return bool(message.text or message.media)
 
 
+def _admin_grant_filter(_, __, message) -> bool:
+    user = message.from_user or message.sender_chat
+    if not user:
+        return False
+    text = message.text or ""
+    return int(user.id) in ADMIN_GRANT_WAIT and bool(text) and (
+        not text.startswith("/") or text.lower() == "/cancel"
+    )
+
+
 if DATABASE_URL:
     try:
         bot_loop.run_until_complete(_ensure_payment_bootstrap())
@@ -963,3 +1114,4 @@ bot.add_handler(
 )
 bot.add_handler(MessageHandler(admin_setkey_message, filters=create(_admin_key_filter)))
 bot.add_handler(MessageHandler(admin_message_relay, filters=create(_admin_relay_filter)))
+bot.add_handler(MessageHandler(admin_grant_message, filters=create(_admin_grant_filter)))

@@ -130,7 +130,11 @@ class PaymentStore:
             }
         settings = await self.get_settings()
         delivered_orders = await self.payments.count_documents(
-            {"bot_id": bot_id, "status": "delivered"}
+            {
+                "bot_id": bot_id,
+                "status": "delivered",
+                "grant_type": {"$ne": "manual_admin"},
+            }
         )
         pipeline = [
             {
