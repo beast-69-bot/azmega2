@@ -92,6 +92,15 @@ def _plan_usage() -> str:
     )
 
 
+def _tutorial_usage() -> str:
+    cmd_name = f"/settutorial{CMD_SUFFIX}" if CMD_SUFFIX else "/settutorial"
+    return (
+        "Usage:\n"
+        f"Reply to a video with {cmd_name}\n"
+        f"Use {cmd_name} clear to remove the current tutorial video"
+    )
+
+
 def _parse_plans() -> dict[str, PaymentPlan]:
     raw = environ.get(
         "PAYMENT_PLANS",
@@ -223,6 +232,20 @@ def _grant_plan_buttons():
     return btn.build_menu(1)
 
 
+def _has_tutorial(settings: dict[str, Any]) -> bool:
+    return bool(
+        int(settings.get("tutorial_chat_id", 0) or 0)
+        and int(settings.get("tutorial_message_id", 0) or 0)
+    )
+
+
+def _is_tutorial_media(message) -> bool:
+    if message.video:
+        return True
+    document = message.document
+    return bool(document and str(document.mime_type or "").startswith("video/"))
+
+
 def _find_plan(plan_input: str) -> PaymentPlan | None:
     key = (plan_input or "").strip().lower()
     if not key:
@@ -240,6 +263,24 @@ def _find_plan(plan_input: str) -> PaymentPlan | None:
         }:
             return plan
     return None
+
+
+async def _send_tutorial_video(user_id: int) -> bool:
+    settings = await payment_store.get_settings()
+    source_chat_id = int(settings.get("tutorial_chat_id", 0) or 0)
+    source_message_id = int(settings.get("tutorial_message_id", 0) or 0)
+    if not (source_chat_id and source_message_id):
+        return False
+    try:
+        await bot.copy_message(
+            chat_id=user_id,
+            from_chat_id=source_chat_id,
+            message_id=source_message_id,
+        )
+        return True
+    except Exception as err:
+        LOGGER.warning(f"tutorial-send failed user={user_id}: {err}")
+        return False
 
 
 def _orders_buttons(orders: list[dict[str, Any]], page: int, total: int, per_page: int):
@@ -384,6 +425,7 @@ async def _approve_payment(order_id: str, approver: str, txn_id: str = "") -> bo
         )
     except Exception:
         pass
+    await _send_tutorial_video(user_id)
     await _send_to_admins(
         f"Payment delivered: <code>{order_id}</code> | user: <code>{user_id}</code> | amount: INR {float(order.get('amount', 0.0)):.2f}"
     )
@@ -863,7 +905,8 @@ async def payment_admin_cmd(_, message) -> None:
     text = (
         "<b>Payment Admin Panel</b>\n"
         f"Gateway: <code>{settings.get('payment_gateway')}</code>\n"
-        f"XWallet Key: <code>{key_mask}</code>"
+        f"XWallet Key: <code>{key_mask}</code>\n"
+        f"Tutorial Video: <code>{'Set' if _has_tutorial(settings) else 'Not Set'}</code>"
     )
     await sendMessage(message, text, buttons)
 
@@ -884,7 +927,8 @@ async def payment_admin_callback(_, query) -> None:
         text = (
             "<b>Payment Admin Panel</b>\n"
             f"Gateway: <code>{settings.get('payment_gateway')}</code>\n"
-            f"XWallet Key: <code>{key_mask}</code>"
+            f"XWallet Key: <code>{key_mask}</code>\n"
+            f"Tutorial Video: <code>{'Set' if _has_tutorial(settings) else 'Not Set'}</code>"
         )
         return await editMessage(query.message, text, buttons)
 
@@ -902,7 +946,8 @@ async def payment_admin_callback(_, query) -> None:
         text = (
             "<b>Payment Admin Panel</b>\n"
             f"Gateway: <code>{settings.get('payment_gateway')}</code>\n"
-            f"XWallet Key: <code>{key_mask}</code>"
+            f"XWallet Key: <code>{key_mask}</code>\n"
+            f"Tutorial Video: <code>{'Set' if _has_tutorial(settings) else 'Not Set'}</code>"
         )
         return await editMessage(query.message, text, buttons)
 
@@ -1009,6 +1054,46 @@ async def admin_setkey_message(_, message) -> None:
     await payment_store.update_settings({"xwallet_api_key": key, "updated_at": _now_ts()})
     await payment_store.log_audit({"action": "set_xwallet_key", "by": uid})
     await sendMessage(message, f"XWallet API key updated: <code>{_mask_key(key)}</code>")
+
+
+async def settutorial_command(_, message) -> None:
+    user = message.from_user or message.sender_chat
+    if not user:
+        return
+    if not payment_store.enabled:
+        return await sendMessage(message, "Payments are unavailable right now.")
+    args = message.command[1:]
+    if args and args[0].strip().lower() == "clear":
+        await payment_store.update_settings(
+            {
+                "tutorial_chat_id": 0,
+                "tutorial_message_id": 0,
+                "updated_at": _now_ts(),
+            }
+        )
+        await payment_store.log_audit({"action": "clear_tutorial_video", "by": int(user.id)})
+        return await sendMessage(message, "Tutorial video cleared.")
+
+    reply = message.reply_to_message
+    if not reply or not _is_tutorial_media(reply):
+        return await sendMessage(message, _tutorial_usage())
+
+    await payment_store.update_settings(
+        {
+            "tutorial_chat_id": int(reply.chat.id),
+            "tutorial_message_id": int(reply.id),
+            "updated_at": _now_ts(),
+        }
+    )
+    await payment_store.log_audit(
+        {
+            "action": "set_tutorial_video",
+            "by": int(user.id),
+            "source_chat": int(reply.chat.id),
+            "source_message": int(reply.id),
+        }
+    )
+    await sendMessage(message, "Tutorial video saved successfully.")
 
 
 async def admin_grant_message(_, message) -> None:
@@ -1170,6 +1255,9 @@ if "payadmin" not in payadmin_cmds:
 addpremium_cmds = [f"addpremium{CMD_SUFFIX}"] if CMD_SUFFIX else ["addpremium"]
 if "addpremium" not in addpremium_cmds:
     addpremium_cmds.append("addpremium")
+settutorial_cmds = [f"settutorial{CMD_SUFFIX}"] if CMD_SUFFIX else ["settutorial"]
+if "settutorial" not in settutorial_cmds:
+    settutorial_cmds.append("settutorial")
 
 bot.add_handler(MessageHandler(auth_expiry_guard, filters=regex(r"^/")), group=-100)
 bot.add_handler(MessageHandler(buy_command, filters=command(buy_cmds)))
@@ -1180,6 +1268,9 @@ bot.add_handler(
 )
 bot.add_handler(
     MessageHandler(addpremium_command, filters=command(addpremium_cmds) & CustomFilters.sudo)
+)
+bot.add_handler(
+    MessageHandler(settutorial_command, filters=command(settutorial_cmds) & CustomFilters.sudo)
 )
 bot.add_handler(
     CallbackQueryHandler(payment_admin_callback, filters=regex("^payadm") & CustomFilters.sudo)

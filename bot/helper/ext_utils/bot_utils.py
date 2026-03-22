@@ -930,6 +930,10 @@ async def set_commands(client):
                 f"addpremium{CMD_SUFFIX}" if CMD_SUFFIX else "addpremium",
                 "Grant premium directly to a user (Owner or Sudo Only)",
             ),
+            BotCommand(
+                f"settutorial{CMD_SUFFIX}" if CMD_SUFFIX else "settutorial",
+                "Set or clear the purchase tutorial video (Owner or Sudo Only)",
+            ),
             BotCommand(BotCommands.LogCommand, "Get bot logs (Owner or Sudo Only)"),
         ]
         if config_dict["SHOW_EXTRA_CMDS"]:

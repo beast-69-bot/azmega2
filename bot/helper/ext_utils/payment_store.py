@@ -55,6 +55,8 @@ class PaymentStore:
                 "$setOnInsert": {
                     "payment_gateway": gateway,
                     "xwallet_api_key": "",
+                    "tutorial_chat_id": 0,
+                    "tutorial_message_id": 0,
                     "total_earnings": 0.0,
                     "created_at": int(time()),
                 }
@@ -68,7 +70,13 @@ class PaymentStore:
 
     async def get_settings(self) -> dict[str, Any]:
         if not self.enabled:
-            return {"payment_gateway": "manual", "xwallet_api_key": "", "total_earnings": 0.0}
+            return {
+                "payment_gateway": "manual",
+                "xwallet_api_key": "",
+                "tutorial_chat_id": 0,
+                "tutorial_message_id": 0,
+                "total_earnings": 0.0,
+            }
         doc = await self.settings.find_one({"_id": bot_id})
         if doc is None:
             await self.ensure_setup()
@@ -76,6 +84,8 @@ class PaymentStore:
         return {
             "payment_gateway": str(doc.get("payment_gateway", "manual")),
             "xwallet_api_key": str(doc.get("xwallet_api_key", "")),
+            "tutorial_chat_id": int(doc.get("tutorial_chat_id", 0) or 0),
+            "tutorial_message_id": int(doc.get("tutorial_message_id", 0) or 0),
             "total_earnings": float(doc.get("total_earnings", 0.0)),
         }
 
