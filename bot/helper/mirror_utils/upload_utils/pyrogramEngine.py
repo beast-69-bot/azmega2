@@ -64,6 +64,7 @@ from bot.helper.ext_utils.leech_utils import (
 
 LOGGER = getLogger(__name__)
 getLogger("pyrogram").setLevel(ERROR)
+UPLOAD_FILE_DELAY = 0.2
 
 
 class TgUploader:
@@ -293,10 +294,15 @@ class TgUploader:
                         msg_link=self.__listener.source_url,
                     ),
                 )
-            except Exception as er:
-                await self.__listener.onUploadError(str(er))
-                return False
-            self.__sent_msg = list(self.__leechmsg.values())[0]
+            except Exception as err:
+                LOGGER.error(f"Leech log bootstrap failed: {err}")
+                self.__leechmsg = {}
+            if self.__leechmsg:
+                self.__sent_msg = list(self.__leechmsg.values())[0]
+            else:
+                LOGGER.warning(
+                    "LEECH_LOG_ID is configured but unavailable. Falling back to source chat upload."
+                )
         elif IS_PREMIUM_USER:
             if not self.__listener.isSuperGroup:
                 await self.__listener.onUploadError(
@@ -304,7 +310,7 @@ class TgUploader:
                 )
                 return False
             self.__sent_msg = self.__listener.message
-        else:
+        if self.__sent_msg is None:
             self.__sent_msg = self.__listener.message
         return True
 
@@ -486,7 +492,7 @@ class TgUploader:
                         self.__listener.isSuperGroup or config_dict["LEECH_LOG_ID"]
                     ):
                         self.__msgs_dict[self.__sent_msg.link] = file_
-                    await sleep(1)
+                    await sleep(UPLOAD_FILE_DELAY)
                 except Exception as err:
                     if isinstance(err, RetryError):
                         LOGGER.info(

@@ -63,6 +63,7 @@ from .modules import (
     mirror_leech,
     payment,
     bot_settings,
+    gen_pyro_sess,
     status,
     torrent_select,
     ytdlp,

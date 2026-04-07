@@ -25,6 +25,7 @@ from pyrogram.errors import (
 from bot import bot, LOGGER, bot_cache, bot_name
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.ext_utils.bot_utils import new_thread, new_task
+from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.message_utils import (
     sendMessage,
     editMessage,
@@ -294,6 +295,9 @@ async def get_decrypt_key(client, message):
 
 bot.add_handler(
     MessageHandler(
-        genPyroString, filters=command("exportsession") & private & CustomFilters.sudo
+        genPyroString,
+        filters=command(BotCommands.SessionCommand)
+        & private
+        & CustomFilters.sudo,
     )
 )

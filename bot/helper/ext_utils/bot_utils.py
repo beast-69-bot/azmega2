@@ -934,6 +934,10 @@ async def set_commands(client):
                 f"settutorial{CMD_SUFFIX}" if CMD_SUFFIX else "settutorial",
                 "Set or clear the purchase tutorial video (Owner or Sudo Only)",
             ),
+            BotCommand(
+                BotCommands.SessionCommand[0],
+                f"or /{BotCommands.SessionCommand[1]} Generate Pyrogram session string (Owner or Sudo Only)",
+            ),
             BotCommand(BotCommands.LogCommand, "Get bot logs (Owner or Sudo Only)"),
         ]
         if config_dict["SHOW_EXTRA_CMDS"]:

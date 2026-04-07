@@ -387,7 +387,7 @@ help_string = [
 ┠ /{BotCommands.EvalCommand}: Run Python Code Line | Lines (Only Owner).
 ┠ /{BotCommands.ExecCommand}: Run Commands In Exec (Only Owner).
 ┠ /{BotCommands.ClearLocalsCommand}: Clear {BotCommands.EvalCommand} or {BotCommands.ExecCommand} locals (Only Owner).
-┖ /exportsession: Generate User StringSession of Same Pyro Version (Only Owner).
+┖ /{BotCommands.SessionCommand[0]} or /{BotCommands.SessionCommand[1]}: Generate User StringSession of Same Pyro Version (Only Owner & Sudo).
 
 <b>RSS Feed:</b>
 ┖ /{BotCommands.RssCommand}: Open RSS Menu (Sub/Unsub/Start/Pause)

@@ -199,49 +199,49 @@ class WZMLStyle:
 
     # def get_readable_message(): ---> bot_utilis.py
     ####--------OVERALL MSG HEADER----------
-    STATUS_NAME = "📦 <b><i>{Name}</i></b>"
+    STATUS_NAME = "📦 <b>{Name}</b>"
 
     #####---------PROGRESSIVE STATUS-------
-    BAR = "\n📊 {Bar}"
-    PROCESSED = "\n✅ <b>Processed:</b> {Processed}"
-    STATUS = '\n📌 <b>Status:</b> <a href="{Url}">{Status}</a>'
-    ETA = " | ⏳ <b>ETA:</b> {Eta}"
-    SPEED = "\n⚡ <b>Speed:</b> {Speed}"
-    ELAPSED = " | ⏱️ <b>Elapsed:</b> {Elapsed}"
-    ENGINE = "\n🛠️ <b>Engine:</b> {Engine}"
-    STA_MODE = "\n🧭 <b>Mode:</b> {Mode}"
-    SEEDERS = "\n🌱 <b>Seeders:</b> {Seeders} | "
+    BAR = "\n├ <b>Progress:</b> {Bar}"
+    PROCESSED = "\n├ <b>Processed:</b> {Processed}"
+    STATUS = '\n├ <b>Status:</b> <a href="{Url}">{Status}</a>'
+    ETA = " | <b>ETA:</b> {Eta}"
+    SPEED = "\n├ <b>Speed:</b> {Speed}"
+    ELAPSED = " | <b>Elapsed:</b> {Elapsed}"
+    ENGINE = "\n├ <b>Engine:</b> {Engine}"
+    STA_MODE = "\n├ <b>Mode:</b> {Mode}"
+    SEEDERS = "\n├ <b>Seeders:</b> {Seeders} | "
     LEECHERS = "<b>Leechers:</b> {Leechers}"
 
     ####--------SEEDING----------
-    SEED_SIZE = "\n💾 <b>Size:</b> {Size}"
-    SEED_SPEED = "\n⚡ <b>Speed:</b> {Speed} | "
+    SEED_SIZE = "\n├ <b>Size:</b> {Size}"
+    SEED_SPEED = "\n├ <b>Speed:</b> {Speed} | "
     UPLOADED = "<b>Uploaded:</b> {Upload}"
-    RATIO = "\n📊 <b>Ratio:</b> {Ratio} | "
+    RATIO = "\n├ <b>Ratio:</b> {Ratio} | "
     TIME = "<b>Time:</b> {Time}"
-    SEED_ENGINE = "\n🛠️ <b>Engine:</b> {Engine}"
+    SEED_ENGINE = "\n├ <b>Engine:</b> {Engine}"
 
     ####--------NON-PROGRESSIVE + NON SEEDING----------
-    STATUS_SIZE = "\n💾 <b>Size:</b> {Size}"
-    NON_ENGINE = "\n🛠️ <b>Engine:</b> {Engine}"
+    STATUS_SIZE = "\n├ <b>Size:</b> {Size}"
+    NON_ENGINE = "\n├ <b>Engine:</b> {Engine}"
 
     ####--------OVERALL MSG FOOTER----------
-    USER = "\n👤 <b>User:</b> <code>{User}</code> | "
+    USER = "\n├ <b>User:</b> {User} | "
     ID = "<b>ID:</b> <code>{Id}</code>"
-    PLAN = "\n💎 <b>Plan:</b> <code>{Plan}</code>"
+    PLAN = "\n├ <b>Plan:</b> <code>{Plan}</code>"
     PLAN_EXP = " | <b>Till:</b> <code>{Till}</code>"
-    BTSEL = "\n🧩 <b>Select:</b> {Btsel}"
-    CANCEL = "\n❌ {Cancel}\n\n"
+    BTSEL = "\n├ <b>Select:</b> {Btsel}"
+    CANCEL = "\n└ <code>{Cancel}</code>\n\n"
 
     ####------FOOTER--------
-    FOOTER = "📊 <b><i>Bot Stats</i></b>\n"
-    TASKS = "📌 <b>Tasks:</b> {Tasks}\n"
-    BOT_TASKS = "📌 <b>Tasks:</b> {Tasks}/{Ttask} | <b>Available:</b> {Free}\n"
-    Cpu = "🧠 <b>CPU:</b> {cpu}% | "
+    FOOTER = "📊 <b>Bot Stats</b>\n"
+    TASKS = "├ <b>Tasks:</b> {Tasks}\n"
+    BOT_TASKS = "├ <b>Tasks:</b> {Tasks}/{Ttask} | <b>Available:</b> {Free}\n"
+    Cpu = "├ <b>CPU:</b> {cpu}% | "
     FREE = "<b>Free:</b> {free} [{free_p}%]"
-    Ram = "\n🧮 <b>RAM:</b> {ram}% | "
+    Ram = "\n├ <b>RAM:</b> {ram}% | "
     uptime = "<b>Uptime:</b> {uptime}"
-    DL = "\n⬇️ <b>DL:</b> {DL}/s | "
+    DL = "\n└ <b>DL:</b> {DL}/s | "
     UL = "<b>UL:</b> {UL}/s"
 
     ###--------BUTTONS-------
@@ -274,10 +274,10 @@ class WZMLStyle:
 
     # async def mirror_status(_, message): ----> status.py
     NO_ACTIVE_DL = (
-        "🕒 <i>No Active Downloads!</i>\n\n"
-        "📊 <b><i>Bot Stats</i></b>\n"
-        "🧠 <b>CPU:</b> {cpu}% | <b>Free:</b> {free} [{free_p}%]\n"
-        "🧮 <b>RAM:</b> {ram} | <b>Uptime:</b> {uptime}\n"
+        "🕒 <b>No Active Downloads</b>\n\n"
+        "📊 <b>Bot Stats</b>\n"
+        "├ <b>CPU:</b> {cpu}% | <b>Free:</b> {free} [{free_p}%]\n"
+        "└ <b>RAM:</b> {ram} | <b>Uptime:</b> {uptime}\n"
     )
     # ---------------------
 
