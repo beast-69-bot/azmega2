@@ -165,7 +165,7 @@ class TgUploader:
 
     async def __copy_file(self):
         try:
-            if self.__bot_pm and (
+            if not self.__upload_dest and self.__bot_pm and (
                 self.__leechmsg
                 and not self.__listener.excep_chat
                 or self.__listener.isSuperGroup
@@ -434,7 +434,7 @@ class TgUploader:
                 self.__msgs_dict[m.link] = m.caption
         self.__sent_msg = msgs_list[-1]
         try:
-            if self.__bot_pm and (
+            if not self.__upload_dest and self.__bot_pm and (
                 self.__leechmsg
                 and not self.__listener.excep_chat
                 or self.__listener.isSuperGroup
