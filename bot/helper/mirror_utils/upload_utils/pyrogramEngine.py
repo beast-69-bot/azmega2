@@ -169,16 +169,11 @@ class TgUploader:
                 self.__leechmsg
                 and not self.__listener.excep_chat
                 or self.__listener.isSuperGroup
-            ):
-                copied = await bot.copy_message(
+            ) and self.__uploader_client and self.__sent_msg.chat.id != self.__user_id:
+                copied = await self.__uploader_client.copy_message(
                     chat_id=self.__user_id,
                     from_chat_id=self.__sent_msg.chat.id,
                     message_id=self.__sent_msg.id,
-                    reply_to_message_id=(
-                        self.__listener.botpmmsg.id
-                        if self.__listener.botpmmsg
-                        else None
-                    ),
                 )
                 if copied and self.__has_buttons:
                     btn_markup = (
@@ -218,13 +213,13 @@ class TgUploader:
                 LOGGER.error(f"Failed To Send in Leech Log [ {chat_id} ]:\n{str(err)}")
 
         try:
-            if self.__upload_dest:
+            if self.__upload_dest and self.__uploader_client:
                 for channel_id in self.__upload_dest:
-                    if chat := (await chat_info(channel_id)):
+                    if chat := (await self.__custom_chat_info(channel_id)):
                         if self.__primary_dest and chat.id == self.__primary_dest:
                             continue
                         try:
-                            dump_copy = await bot.copy_message(
+                            dump_copy = await self.__uploader_client.copy_message(
                                 chat_id=chat.id,
                                 from_chat_id=self.__sent_msg.chat.id,
                                 message_id=self.__sent_msg.id,
@@ -292,60 +287,64 @@ class TgUploader:
         if not await aiopath.exists(self.__thumb):
             self.__thumb = None
 
+    async def __custom_chat_info(self, chat_id):
+        if not self.__uploader_client:
+            return None
+        try:
+            return await self.__uploader_client.get_chat(chat_id)
+        except (ChannelInvalid, PeerIdInvalid, RPCError) as err:
+            LOGGER.error(
+                f"Custom uploader cannot access destination {chat_id}: {type(err).__name__}"
+            )
+            return None
+
+    async def __send_uploader_bootstrap(self, chat_id, msg_user):
+        if not self.__uploader_client:
+            return None
+        try:
+            return await self.__uploader_client.send_message(
+                chat_id=chat_id,
+                text=BotTheme(
+                    "L_LOG_START",
+                    mention=msg_user.mention(style="HTML"),
+                    uid=msg_user.id,
+                    msg_link=self.__listener.source_url,
+                ),
+                disable_notification=True,
+            )
+        except RPCError as err:
+            LOGGER.error(
+                f"Custom uploader bootstrap failed for {chat_id}: {type(err).__name__}"
+            )
+            return None
+
     async def __msg_to_reply(self):
-        msg_link = self.__listener.message.link if self.__listener.isSuperGroup else ""
         msg_user = self.__listener.message.from_user
-        if config_dict["LEECH_LOG_ID"] and not self.__listener.excep_chat:
-            try:
-                self.__leechmsg = await sendMultiMessage(
-                    config_dict["LEECH_LOG_ID"],
-                    BotTheme(
-                        "L_LOG_START",
-                        mention=msg_user.mention(style="HTML"),
-                        uid=msg_user.id,
-                        msg_link=self.__listener.source_url,
-                    ),
-                )
-            except Exception as err:
-                LOGGER.error(f"Leech log bootstrap failed: {err}")
-                self.__leechmsg = {}
-            if self.__leechmsg:
-                self.__sent_msg = list(self.__leechmsg.values())[0]
-            else:
-                LOGGER.warning(
-                    "LEECH_LOG_ID is configured but unavailable. Falling back to source chat upload."
-                )
-        elif self.__upload_dest and not self.__bot_pm:
+        if self.__upload_dest:
             primary_dest = self.__upload_dest[0]
-            dump_chat = await chat_info(primary_dest)
+            dump_chat = await self.__custom_chat_info(primary_dest)
             if dump_chat:
                 self.__primary_dest = dump_chat.id
-                try:
-                    self.__sent_msg = await sendCustomMsg(
-                        dump_chat.id,
-                        BotTheme(
-                            "L_LOG_START",
-                            mention=msg_user.mention(style="HTML"),
-                            uid=msg_user.id,
-                            msg_link=self.__listener.source_url,
-                        ),
-                    )
-                except Exception as err:
-                    LOGGER.error(f"Primary dump bootstrap failed: {err}")
-                    self.__sent_msg = None
+                self.__sent_msg = await self.__send_uploader_bootstrap(
+                    dump_chat.id, msg_user
+                )
             else:
-                LOGGER.error(
-                    f"Primary dump destination unavailable: {primary_dest}. Falling back to source chat upload."
+                return await self.__listener.onUploadRequirementError(
+                    "Add your custom bot to the selected leech dump/channel first."
                 )
-        elif IS_PREMIUM_USER:
-            if not self.__listener.isSuperGroup:
-                await self.__listener.onUploadError(
-                    "Use SuperGroup to leech with User Client! or Set LEECH_LOG_ID to Leech in PM"
+            if self.__sent_msg is None:
+                return await self.__listener.onUploadRequirementError(
+                    "Add your custom bot to the selected leech dump/channel first."
                 )
-                return False
-            self.__sent_msg = self.__listener.message
+            return True
+        self.__primary_dest = self.__user_id
+        self.__sent_msg = await self.__send_uploader_bootstrap(
+            self.__user_id, msg_user
+        )
         if self.__sent_msg is None:
-            self.__sent_msg = self.__listener.message
+            return await self.__listener.onUploadRequirementError(
+                "Start your custom bot first and try again."
+            )
         return True
 
     async def __prepare_file(self, prefile_, dirpath):
@@ -439,8 +438,8 @@ class TgUploader:
                 self.__leechmsg
                 and not self.__listener.excep_chat
                 or self.__listener.isSuperGroup
-            ):
-                await bot.copy_media_group(
+            ) and self.__uploader_client and self.__sent_msg.chat.id != self.__user_id:
+                await self.__uploader_client.copy_media_group(
                     chat_id=self.__user_id,
                     from_chat_id=self.__sent_msg.chat.id,
                     message_id=self.__sent_msg.id,
@@ -449,11 +448,13 @@ class TgUploader:
             if not self.__is_cancelled:
                 LOGGER.error(f"Failed To Send in Bot PM:\n{str(err)}")
         try:
-            if self.__upload_dest:
+            if self.__upload_dest and self.__uploader_client:
                 for channel_id in self.__upload_dest:
-                    if dump_chat := (await chat_info(channel_id)):
+                    if dump_chat := (await self.__custom_chat_info(channel_id)):
+                        if self.__primary_dest and dump_chat.id == self.__primary_dest:
+                            continue
                         try:
-                            await bot.copy_media_group(
+                            await self.__uploader_client.copy_media_group(
                                 chat_id=dump_chat.id,
                                 from_chat_id=self.__sent_msg.chat.id,
                                 message_id=self.__sent_msg.id,
@@ -467,9 +468,6 @@ class TgUploader:
 
     async def upload(self, o_files, m_size, size):
         await self.__user_settings()
-        res = await self.__msg_to_reply()
-        if not res:
-            return
         self.__uploader_client = await get_uploader_client(self.__user_id)
         if self.__uploader_client is None:
             if await get_user_data_key(self.__user_id, "bot_token", None):
@@ -479,6 +477,9 @@ class TgUploader:
             return await self.__listener.onUploadRequirementError(
                 "Add your bot with /setbot first"
             )
+        res = await self.__msg_to_reply()
+        if not res:
+            return
         isDeleted = False
         for dirpath, _, files in sorted(await sync_to_async(walk, self.__path)):
             if dirpath.endswith("/yt-dlp-thumb"):

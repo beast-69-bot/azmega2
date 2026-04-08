@@ -454,14 +454,8 @@ async def _mirror_leech(
                 if is_cancelled:
                     await delete_links(message)
                     return
-        effective_bot_pm = user_data.get(message.from_user.id, {}).get(
-            "bot_pm", config_dict["BOT_PM"]
-        )
-        if isLeech and not effective_bot_pm and not config_dict["LEECH_LOG_ID"] and not up:
-            await sendMessage(
-                message,
-                "Leech destination is required.\nSet your Leech Dump in /usetting or use -ud/-dump before starting leech.",
-            )
+        if isLeech and not user_data.get(message.from_user.id, {}).get("bot_token"):
+            await sendMessage(message, "Add your bot with /setbot first")
             await delete_links(message)
             return
 
