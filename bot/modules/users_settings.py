@@ -38,6 +38,7 @@ from bot.helper.telegram_helper.message_utils import (
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
+from bot.helper.telegram_helper.uploader_clients import get_uploader_client
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.ext_utils.bot_utils import (
@@ -146,6 +147,11 @@ fname_dict = {
     "gofile": "GoFile",
     "streamtape": "StreamTape",
 }
+
+desp_dict["ldump"] = [
+    "Leech Dump is your personal upload destination for leeched files.",
+    "🤖 <b>Send Leech Dump Channel ID</b>\n➲ <b>Format:</b>\ntitle chat_id/@username\ntitle2 chat_id2/@username2\n\n<b>Important:</b>\n• Set your custom bot first with <code>/setbot</code>\n• Add that custom bot to the channel/group before saving\n• The main bot is not required there\n\n<b>Timeout:</b> 60 sec",
+]
 
 
 async def get_user_settings(from_user, key=None, edit_type=None, edit_mode=None):
@@ -757,7 +763,15 @@ async def set_custom(client, message, pre_event, key, direct=False):
         value = user_tds
         return_key = "mirror"
     elif key == "ldump":
+        uploader_client = await get_uploader_client(user_id)
+        if not uploader_client:
+            await sendMessage(
+                message,
+                "🤖 <b>Custom bot required</b>\n\nAdd your bot with <code>/setbot</code> first.",
+            )
+            return
         ldumps = user_dict.get(key, {})
+        added_dump = False
         for dump_item in value.split("\n"):
             if dump_item == "":
                 continue
@@ -769,8 +783,20 @@ async def set_custom(client, message, pre_event, key, direct=False):
             for title in list(ldumps.keys()):
                 if dump_info[0].casefold() == title.casefold():
                     del ldumps[title]
-            if len(dump_info) > 1 and (dump_chat := await chat_info(dump_info[1])):
-                ldumps[dump_info[0]] = dump_chat.id
+            if len(dump_info) > 1:
+                try:
+                    dump_chat = await uploader_client.get_chat(dump_info[1])
+                except Exception:
+                    dump_chat = None
+                if dump_chat:
+                    ldumps[dump_info[0]] = dump_chat.id
+                    added_dump = True
+        if value.strip() and not added_dump:
+            await sendMessage(
+                message,
+                "⚠️ <b>Dump not reachable.</b>\n\nAdd your custom bot to that dump/channel first, then try again.",
+            )
+            return
         value = ldumps
     elif key in ["yt_opt", "usess"]:
         if key == "usess":

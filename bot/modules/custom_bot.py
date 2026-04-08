@@ -21,12 +21,15 @@ async def setbot(_, message):
     if len(message.command) < 2:
         return await sendMessage(
             message,
-            f"Usage: /{BotCommands.SetBotCommand} <token>",
+            f"🤖 <b>Set Your Upload Bot</b>\n\nUsage: <code>/{BotCommands.SetBotCommand} &lt;token&gt;</code>",
         )
     bot_token = message.text.split(maxsplit=1)[1].strip()
     me = await validate_user_bot_token(user_id, bot_token)
     if not me:
-        reply = await sendCustomMsg(message.chat.id, "Invalid bot token.")
+        reply = await sendCustomMsg(
+            message.chat.id,
+            "❌ <b>Invalid bot token.</b>\n\nPlease check the token and try again.",
+        )
         try:
             await deleteMessage(message)
         except Exception:
@@ -36,7 +39,12 @@ async def setbot(_, message):
     await save_user_bot(user_id, bot_token)
     reply = await sendCustomMsg(
         message.chat.id,
-        f"Custom upload bot saved.\nUsername: @{me.username}\nID: <code>{me.id}</code>",
+        (
+            "✅ <b>Custom upload bot saved</b>\n\n"
+            f"• Username: @{me.username}\n"
+            f"• ID: <code>{me.id}</code>\n\n"
+            "Now you can start leeching smoothly."
+        ),
     )
     try:
         await deleteMessage(message)
@@ -49,7 +57,10 @@ async def rembot(_, message):
     user_id = message.from_user.id
     await stop_uploader_client(user_id)
     await remove_user_bot(user_id)
-    reply = await sendCustomMsg(message.chat.id, "Custom upload bot removed.")
+    reply = await sendCustomMsg(
+        message.chat.id,
+        "🗑️ <b>Custom upload bot removed.</b>\n\nSet a new one anytime with <code>/setbot</code>.",
+    )
     try:
         await deleteMessage(message)
     except Exception:
@@ -61,7 +72,10 @@ async def mybot(_, message):
     user_id = message.from_user.id
     bot_token = await get_user_data_key(user_id, "bot_token", None)
     if not bot_token:
-        reply = await sendCustomMsg(message.chat.id, "No custom upload bot set.")
+        reply = await sendCustomMsg(
+            message.chat.id,
+            "ℹ️ <b>No custom upload bot set.</b>\n\nUse <code>/setbot &lt;token&gt;</code> first.",
+        )
         try:
             await deleteMessage(message)
         except Exception:
@@ -71,7 +85,7 @@ async def mybot(_, message):
     if not client:
         reply = await sendCustomMsg(
             message.chat.id,
-            "Saved bot token is invalid. Set it again with /setbot.",
+            "⚠️ <b>Saved bot token is no longer valid.</b>\n\nSet it again with <code>/setbot</code>.",
         )
         try:
             await deleteMessage(message)
@@ -81,7 +95,11 @@ async def mybot(_, message):
     me = await client.get_me()
     reply = await sendCustomMsg(
         message.chat.id,
-        f"Custom upload bot\nUsername: @{me.username}\nID: <code>{me.id}</code>",
+        (
+            "🤖 <b>Your Custom Upload Bot</b>\n\n"
+            f"• Username: @{me.username}\n"
+            f"• ID: <code>{me.id}</code>"
+        ),
     )
     try:
         await deleteMessage(message)
