@@ -94,6 +94,7 @@ class TgUploader:
         self.__as_doc = False
         self.__media_group = False
         self.__upload_dest = ""
+        self.__primary_dest = None
         self.__bot_pm = False
         self.__user_id = listener.message.from_user.id
         self.__leechmsg = {}
@@ -215,6 +216,8 @@ class TgUploader:
             if self.__upload_dest:
                 for channel_id in self.__upload_dest:
                     if chat := (await chat_info(channel_id)):
+                        if self.__primary_dest and chat.id == self.__primary_dest:
+                            continue
                         try:
                             dump_copy = await bot.copy_message(
                                 chat_id=chat.id,
@@ -272,6 +275,8 @@ class TgUploader:
         self.__upload_dest = (
             ud if (ud := self.__listener.upPath) and isinstance(ud, list) else [ud]
         )
+        self.__upload_dest = [dest for dest in self.__upload_dest if dest]
+        self.__primary_dest = None
         self.__has_buttons = bool(
             config_dict["SAVE_MSG"]
             or self.__mediainfo
@@ -302,6 +307,28 @@ class TgUploader:
             else:
                 LOGGER.warning(
                     "LEECH_LOG_ID is configured but unavailable. Falling back to source chat upload."
+                )
+        elif self.__upload_dest and not self.__bot_pm:
+            primary_dest = self.__upload_dest[0]
+            dump_chat = await chat_info(primary_dest)
+            if dump_chat:
+                self.__primary_dest = dump_chat.id
+                try:
+                    self.__sent_msg = await sendCustomMsg(
+                        dump_chat.id,
+                        BotTheme(
+                            "L_LOG_START",
+                            mention=msg_user.mention(style="HTML"),
+                            uid=msg_user.id,
+                            msg_link=self.__listener.source_url,
+                        ),
+                    )
+                except Exception as err:
+                    LOGGER.error(f"Primary dump bootstrap failed: {err}")
+                    self.__sent_msg = None
+            else:
+                LOGGER.error(
+                    f"Primary dump destination unavailable: {primary_dest}. Falling back to source chat upload."
                 )
         elif IS_PREMIUM_USER:
             if not self.__listener.isSuperGroup:
