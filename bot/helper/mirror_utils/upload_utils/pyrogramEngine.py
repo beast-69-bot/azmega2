@@ -61,6 +61,10 @@ from bot.helper.ext_utils.leech_utils import (
     get_mediainfo_link,
     format_filename,
 )
+from bot.helper.telegram_helper.uploader_clients import (
+    get_uploader_client,
+    get_user_data_key,
+)
 
 LOGGER = getLogger(__name__)
 getLogger("pyrogram").setLevel(ERROR)
@@ -89,6 +93,7 @@ class TgUploader:
         self.__last_msg_in_group = False
         self.__prm_media = False
         self.__client = bot
+        self.__uploader_client = None
         self.__up_path = ""
         self.__mediainfo = False
         self.__as_doc = False
@@ -251,6 +256,8 @@ class TgUploader:
 
     async def __upload_progress(self, current, total):
         if self.__is_cancelled:
+            if self.__uploader_client:
+                self.__uploader_client.stop_transmission()
             if IS_PREMIUM_USER:
                 user.stop_transmission()
             bot.stop_transmission()
@@ -409,10 +416,8 @@ class TgUploader:
         return rlist
 
     async def __switching_client(self):
-        LOGGER.info(
-            f'Uploading Media {">" if self.__prm_media else "<"} 2GB by {"User" if self.__prm_media else "Bot"} Client'
-        )
-        self.__client = user if (self.__prm_media and IS_PREMIUM_USER) else bot
+        self.__client = self.__uploader_client
+        LOGGER.info(f"Uploading media via custom uploader bot for user {self.__user_id}")
 
     async def __send_media_group(self, subkey, key, msgs):
         msgs_list = await msgs[0].reply_to_message.reply_media_group(
@@ -465,6 +470,15 @@ class TgUploader:
         res = await self.__msg_to_reply()
         if not res:
             return
+        self.__uploader_client = await get_uploader_client(self.__user_id)
+        if self.__uploader_client is None:
+            if await get_user_data_key(self.__user_id, "bot_token", None):
+                return await self.__listener.onUploadRequirementError(
+                    "Invalid custom bot token. Set it again with /setbot."
+                )
+            return await self.__listener.onUploadRequirementError(
+                "Add your bot with /setbot first"
+            )
         isDeleted = False
         for dirpath, _, files in sorted(await sync_to_async(walk, self.__path)):
             if dirpath.endswith("/yt-dlp-thumb"):
@@ -622,7 +636,9 @@ class TgUploader:
                     reply_markup=buttons,
                 )
 
-                if self.__prm_media and (self.__has_buttons or not self.__leechmsg):
+                if self.__client == user and self.__prm_media and (
+                    self.__has_buttons or not self.__leechmsg
+                ):
                     try:
                         self.__sent_msg = await bot.copy_message(
                             nrml_media.chat.id,
@@ -682,7 +698,9 @@ class TgUploader:
                     progress=self.__upload_progress,
                     reply_markup=buttons,
                 )
-                if self.__prm_media and (self.__has_buttons or not self.__leechmsg):
+                if self.__client == user and self.__prm_media and (
+                    self.__has_buttons or not self.__leechmsg
+                ):
                     try:
                         self.__sent_msg = await bot.copy_message(
                             nrml_media.chat.id,

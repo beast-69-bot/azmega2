@@ -919,6 +919,18 @@ async def set_commands(client):
                 f"or /{BotCommands.UserSetCommand[1]} User's Personal Settings (Open in PM)",
             ),
             BotCommand(
+                BotCommands.SetBotCommand,
+                "Set your custom upload bot token",
+            ),
+            BotCommand(
+                BotCommands.RemBotCommand,
+                "Remove your custom upload bot token",
+            ),
+            BotCommand(
+                BotCommands.MyBotCommand,
+                "Show your current custom upload bot",
+            ),
+            BotCommand(
                 BotCommands.BotSetCommand[0],
                 f"or /{BotCommands.BotSetCommand[1]} Bot settings (Owner only)",
             ),

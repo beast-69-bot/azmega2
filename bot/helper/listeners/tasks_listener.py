@@ -989,3 +989,39 @@ class MirrorLeechListener:
         await clean_download(self.dir)
         if self.newDir:
             await clean_download(self.newDir)
+
+    async def onUploadRequirementError(self, error):
+        async with download_dict_lock:
+            if self.uid in download_dict.keys():
+                del download_dict[self.uid]
+            count = len(download_dict)
+        await sendMessage(self.message, error)
+        if count == 0:
+            await self.clean()
+        else:
+            await update_all_messages()
+
+        if (
+            self.isSuperGroup
+            and config_dict["INCOMPLETE_TASK_NOTIFIER"]
+            and DATABASE_URL
+        ):
+            await DbManger().rm_complete_task(self.message.link)
+
+        async with queue_dict_lock:
+            if self.uid in queued_dl:
+                queued_dl[self.uid].set()
+                del queued_dl[self.uid]
+            if self.uid in queued_up:
+                queued_up[self.uid].set()
+                del queued_up[self.uid]
+            if self.uid in non_queued_dl:
+                non_queued_dl.remove(self.uid)
+            if self.uid in non_queued_up:
+                non_queued_up.remove(self.uid)
+
+        await start_from_queued()
+        await sleep(3)
+        await clean_download(self.dir)
+        if self.newDir:
+            await clean_download(self.newDir)

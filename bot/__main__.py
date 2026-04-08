@@ -55,11 +55,13 @@ from .helper.telegram_helper.message_utils import (
     delete_all_messages,
 )
 from .helper.telegram_helper.filters import CustomFilters
+from .helper.telegram_helper.uploader_clients import stop_all_uploader_clients
 from .helper.telegram_helper.button_build import ButtonMaker
 from .helper.listeners.aria2_listener import start_aria2_listener
 from .helper.themes import BotTheme
 from .modules import (
     cancel_mirror,
+    custom_bot,
     mirror_leech,
     payment,
     bot_settings,
@@ -403,6 +405,9 @@ async def main():
             filters=regex(r"^/")
             & ~command(BotCommands.StartCommand)
             & ~command(BotCommands.LoginCommand)
+            & ~command(BotCommands.SetBotCommand)
+            & ~command(BotCommands.RemBotCommand)
+            & ~command(BotCommands.MyBotCommand)
             & ~command(payment.buy_cmds)
             & ~CustomFilters.authorized
             & ~CustomFilters.blacklisted,
@@ -415,6 +420,7 @@ async def main():
 
 
 async def stop_signals():
+    await stop_all_uploader_clients()
     if user:
         await gather(bot.stop(), user.stop())
     else:

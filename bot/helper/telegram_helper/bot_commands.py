@@ -79,6 +79,9 @@ class _BotCommands:
         self.SpeedCommand = [f"speedtest{CMD_SUFFIX}", f"sp{CMD_SUFFIX}"]
         self.RssCommand = f"rss{CMD_SUFFIX}"
         self.LoginCommand = "login"
+        self.SetBotCommand = "setbot"
+        self.RemBotCommand = "rembot"
+        self.MyBotCommand = "mybot"
         self.SessionCommand = ["exportsession", "gensession"]
         self.AddImageCommand = f"addimg{CMD_SUFFIX}"
         self.ImagesCommand = f"images{CMD_SUFFIX}"

@@ -347,6 +347,11 @@ help_string = [
 <b>Premium:</b>
 ┖ /buy: Open premium plans and payment flow
 
+<b>Custom Upload Bot:</b>
+┠ /{BotCommands.SetBotCommand} [token]: Save your personal upload bot token
+┠ /{BotCommands.RemBotCommand}: Remove your saved upload bot token
+┖ /{BotCommands.MyBotCommand}: Show your saved upload bot username and id
+
 <b>Authentication:</b>
 ┖ /login: Login to Bot to Access Bot without Temp Pass System (Private)
 
