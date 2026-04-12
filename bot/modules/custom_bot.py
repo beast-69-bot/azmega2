@@ -5,7 +5,11 @@ from pyrogram.handlers import MessageHandler
 from bot import bot
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.message_utils import deleteMessage, sendCustomMsg, sendMessage
+from bot.helper.telegram_helper.message_utils import (
+    deleteMessage,
+    sendCustomMsg,
+    sendMessage,
+)
 from bot.helper.telegram_helper.uploader_clients import (
     get_uploader_client,
     get_user_data_key,
@@ -21,7 +25,11 @@ async def setbot(_, message):
     if len(message.command) < 2:
         return await sendMessage(
             message,
-            f"🤖 <b>Set Your Upload Bot</b>\n\nUsage: <code>/{BotCommands.SetBotCommand} &lt;token&gt;</code>",
+            (
+                f"🤖 <b>Set Your Upload Bot</b>\n\n"
+                f"Usage: <code>/{BotCommands.SetBotCommand} &lt;token&gt;</code>\n\n"
+                '📚 Tutorial: <a href="https://t.me/aztutorial12321/41">Watch here</a>'
+            ),
         )
     bot_token = message.text.split(maxsplit=1)[1].strip()
     me = await validate_user_bot_token(user_id, bot_token)
